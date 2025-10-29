@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSA Visualizer - Interactive Algorithm Learning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {"50":"#eff6ff","100":"#dbeafe","200":"#bfdbfe","300":"#93c5fd","400":"#60a5fa","500":"#3b82f6","600":"#2563eb","700":"#1d4ed8","800":"#1e40af","900":"#1e3a8a","950":"#172554"}
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+        
+        body.light-mode {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .algorithm-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .algorithm-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .nav-tab {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .nav-tab.active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+            border-radius: 2px;
+        }
+        
+        .array-bar {
+            transition: all 0.3s ease;
+            border-radius: 4px 4px 0 0;
+        }
+        
+        .comparing {
+            background: #ff6b6b !important;
+            transform: scale(1.1);
+        }
+        
+        .swapping {
+            background: #feca57 !important;
+            transform: scale(1.2);
+        }
+        
+        .sorted {
+            background: #48cab2 !important;
+        }
+        
+        .tree-node {
+            fill: #667eea;
+            stroke: #fff;
+            stroke-width: 2;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tree-node:hover {
+            fill: #ff6b6b;
+            transform: scale(1.1);
+        }
+        
+        .tree-node.visiting {
+            fill: #feca57;
+            stroke: #ff6b6b;
+            stroke-width: 3;
+        }
+        
+        .tree-node.visited {
+            fill: #48cab2;
+        }
+        
+        .tree-link {
+            stroke: #fff;
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        .graph-node {
+            fill: #667eea;
+            stroke: #fff;
+            stroke-width: 2;
+            cursor: pointer;
+        }
+        
+        .graph-node.visiting {
+            fill: #feca57;
+            stroke: #ff6b6b;
+            stroke-width: 3;
+        }
+        
+        .graph-node.visited {
+            fill: #48cab2;
+        }
+        
+        .graph-edge {
+            stroke: #fff;
+            stroke-width: 2;
+            opacity: 0.6;
+        }
+        
+        .graph-edge.active {
+            stroke: #ff6b6b;
+            stroke-width: 3;
+            opacity: 1;
+        }
+        
+        .control-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .speed-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+        }
+        
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            cursor: pointer;
+        }
+        
+        .speed-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            cursor: pointer;
+            border: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        .circular-queue-ring {
+            transform-origin: center;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .deque-item {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .deque-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Data Structure Controls Visibility */
+        .controls-container {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .controls-container:not(.active) {
+            display: none;
+        }
+        
+        .controls-container.active {
+            display: block;
+        }
+
+        .ds-container:not(.active) {
+            display: none !important;
+        }
+
+        .ds-container.active {
+            display: flex !important;
+            visibility: visible !important;
+        }
+
+        /* Queue Container Styles */
+        #queue-container .queue-wrapper {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            padding: 1rem 0.5rem;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+        }
+
+        #queue-container .queue-items {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            min-width: min-content;
+            padding: 0.5rem;
+        }
+
+        .queue-item {
+            min-width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        /* Custom scrollbar for queue container */
+        #queue-container .queue-wrapper::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        #queue-container .queue-wrapper::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #queue-container .queue-wrapper::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        /* Data Structure Element Styles */
+        .stack-item, .queue-item, .array-item, .circular-queue-item, .deque-item {
+            background-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Stack Specific Styles */
+        #stack-container {
+            padding: 1rem;
+            overflow-y: auto;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+            padding-top: 20px;
+            min-height: 100%;
+        }
+
+        #stack-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #stack-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #stack-container::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .stack-item {
+            width: 80px;
+            height: min(40px, calc(100% / 20));
+            margin: 4px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        /* Stack container with many items */
+        #stack-container.many-items .stack-item {
+            height: min(30px, calc(100% / 25));
+            font-size: 14px;
+            margin: 2px auto;
+        }
+
+        #stack-container.very-many-items .stack-item {
+            height: min(24px, calc(100% / 30));
+            font-size: 12px;
+            margin: 1px auto;
+        }
+
+        .ds-visualization {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 1rem;
+            padding: 1rem;
+        }
+
+        /* Data Structure Selection */
+        [data-ds].active {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-5px);
+        }
+
+        /* Cover Page Styles */
+        .cover-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: radial-gradient(1200px 600px at 10% 10%, rgba(255,255,255,0.25), rgba(255,255,255,0) 40%),
+                        radial-gradient(1000px 500px at 90% 20%, rgba(78,205,196,0.25), rgba(255,255,255,0) 40%),
+                        linear-gradient(135deg, #0f172a 0%, #312e81 50%, #7c3aed 100%);
+        }
+        .cover-float {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(20px);
+            opacity: 0.35;
+            animation: floatBlob 12s ease-in-out infinite;
+            mix-blend-mode: screen;
+        }
+        .cover-float:nth-child(1) { width: 480px; height: 480px; background: #22d3ee; left: -120px; top: -120px; animation-delay: 0s; }
+        .cover-float:nth-child(2) { width: 380px; height: 380px; background: #f472b6; right: -80px; top: 10%; animation-delay: 1.2s; }
+        .cover-float:nth-child(3) { width: 520px; height: 520px; background: #34d399; left: 20%; bottom: -160px; animation-delay: 2.4s; }
+        @keyframes floatBlob {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-30px) scale(1.05); }
+        }
+        .cover-grid {
+            position: absolute; inset: 0; pointer-events: none; opacity: 0.2;
+            background-image: linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: gridDrift 18s linear infinite;
+        }
+        @keyframes gridDrift { from { background-position: 0 0, 0 0; } to { background-position: 40px 40px, 40px 40px; } }
+        .cover-content { position: relative; text-align: center; padding: 24px; color: #fff; }
+        .cover-title { font-weight: 900; letter-spacing: -0.02em; text-shadow: 0 10px 40px rgba(0,0,0,0.5); font-size: clamp(36px, 6vw, 84px); }
+        /* Unique gradient title styling */
+        .unique-title {
+            background: linear-gradient(90deg, #06b6d4, #a78bfa, #f472b6, #22c55e, #06b6d4);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent !important;
+            animation: titleGradientShift 8s ease infinite;
+        }
+        @keyframes titleGradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        /* 3D Logo */
+        .logo3d { width: 140px; height: 140px; margin: 20px auto 0; perspective: 800px; }
+        .cube { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; animation: spin3d 6s linear infinite; }
+        .cube-face { position: absolute; width: 100%; height: 100%; border-radius: 18px; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 10px 30px rgba(0,0,0,0.25) inset; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; text-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+        .cube-face.front { transform: translateZ(70px); background: linear-gradient(135deg, #06b6d4, #60a5fa); }
+        .cube-face.back { transform: rotateY(180deg) translateZ(70px); background: linear-gradient(135deg, #f472b6, #a78bfa); }
+        .cube-face.right { transform: rotateY(90deg) translateZ(70px); background: linear-gradient(135deg, #34d399, #22d3ee); }
+        .cube-face.left { transform: rotateY(-90deg) translateZ(70px); background: linear-gradient(135deg, #f59e0b, #ef4444); }
+        .cube-face.top { transform: rotateX(90deg) translateZ(70px); background: linear-gradient(135deg, #7c3aed, #06b6d4); }
+        .cube-face.bottom { transform: rotateX(-90deg) translateZ(70px); background: linear-gradient(135deg, #0ea5e9, #22c55e); }
+        @keyframes spin3d { from { transform: rotateX(0) rotateY(0); } to { transform: rotateX(360deg) rotateY(360deg); } }
+
+        /* Cover hide animation */
+        .cover-overlay.hide { animation: coverFadeOut 0.6s ease forwards; }
+        @keyframes coverFadeOut { to { opacity: 0; transform: scale(1.02); } }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .nav-tab {
+                padding: 8px 12px !important;
+                font-size: 14px;
+            }
+            
+            .algorithm-card {
+                padding: 12px !important;
+            }
+            
+            .algorithm-card h3 {
+                font-size: 14px !important;
+            }
+            
+            .algorithm-card p {
+                font-size: 12px !important;
+            }
+            
+            .control-btn {
+                padding: 8px 12px !important;
+                font-size: 14px;
+            }
+            
+            #sorting-visualization {
+                height: 250px !important;
+            }
+            
+            #tree-visualization svg {
+                width: 100% !important;
+                height: 250px !important;
+            }
+            
+            #graph-visualization svg {
+                width: 100% !important;
+                height: 250px !important;
+            }
+            
+            .glass-card {
+                margin: 8px !important;
+                padding: 16px !important;
+            }
+            
+            .speed-slider {
+                width: 80px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 2rem !important;
+            }
+            
+            .nav-tab {
+                padding: 6px 8px !important;
+                font-size: 12px;
+            }
+            
+            .algorithm-card {
+                padding: 8px !important;
+            }
+            
+            .control-btn {
+                padding: 6px 10px !important;
+                font-size: 12px;
+                margin: 2px;
+            }
+            
+            .flex.space-x-4 {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            
+            #sorting-visualization {
+                height: 200px !important;
+            }
+            
+            #tree-visualization svg,
+            #graph-visualization svg {
+                height: 200px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Cover Overlay -->
+    <div id="cover-overlay" class="cover-overlay">
+        <div class="cover-grid"></div>
+        <div class="cover-float"></div>
+        <div class="cover-float"></div>
+        <div class="cover-float"></div>
+        <div class="cover-content">
+            <div class="cover-title unique-title">DSA VISUALIZER</div>
+            <div class="logo3d">
+                <div class="cube">
+                    <div class="cube-face front">DSA</div>
+                    <div class="cube-face back">ALG</div>
+                    <div class="cube-face right">BST</div>
+                    <div class="cube-face left">GPH</div>
+                    <div class="cube-face top">BFS</div>
+                    <div class="cube-face bottom">DFS</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="min-h-screen p-4">
+        <!-- Header -->
+        <header class="text-center mb-8 fade-in">
+            <div class="flex justify-end mb-2">
+                <button id="theme-toggle" class="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-all">
+                    <svg id="dark-icon" class="w-6 h-6 text-yellow-300 hidden" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path>
+                    </svg>
+                    <svg id="light-icon" class="w-6 h-6 text-gray-800" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                </button>
+            </div>
+            <h1 class="text-4xl md:text-6xl font-bold text-white mb-4 unique-title">
+                DSA Visualizer
+            </h1>
+            <p class="text-xl text-white opacity-90">
+                Interactive Data Structures & Algorithms Learning Platform
+            </p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="flex justify-center mb-8 fade-in">
+            <div class="glass-card rounded-full p-2">
+                <div class="flex space-x-2">
+                    <button class="nav-tab active px-6 py-3 rounded-full text-white font-medium" data-tab="data-structures">
+                        📚 Data Structures
+                    </button>
+                    <button class="nav-tab px-6 py-3 rounded-full text-white font-medium" data-tab="trees">
+                        🌳 Trees
+                    </button>
+                    <button class="nav-tab px-6 py-3 rounded-full text-white font-medium" data-tab="graphs">
+                        🕸️ Graphs
+                    </button>
+                    <button class="nav-tab px-6 py-3 rounded-full text-white font-medium" data-tab="sorting">
+                        🔢 Sorting
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto">
+            <!-- Sorting Section -->
+            <section id="sorting-section" class="tab-content">
+                <div class="glass-card rounded-2xl p-6 mb-6 fade-in">
+                    <h2 class="text-2xl font-bold text-white mb-4">Sorting Algorithms</h2>
+                    
+                    <!-- Algorithm Selection -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-algorithm="bubble">
+                            <div class="text-3xl mb-2">🫧</div>
+                            <h3 class="text-white font-medium">Bubble Sort</h3>
+                            <p class="text-white opacity-70 text-sm">O(n²)</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-algorithm="quick">
+                            <div class="text-3xl mb-2">⚡</div>
+                            <h3 class="text-white font-medium">Quick Sort</h3>
+                            <p class="text-white opacity-70 text-sm">O(n log n)</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-algorithm="merge">
+                            <div class="text-3xl mb-2">🔀</div>
+                            <h3 class="text-white font-medium">Merge Sort</h3>
+                            <p class="text-white opacity-70 text-sm">O(n log n)</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-algorithm="heap">
+                            <div class="text-3xl mb-2">🏔️</div>
+                            <h3 class="text-white font-medium">Heap Sort</h3>
+                            <p class="text-white opacity-70 text-sm">O(n log n)</p>
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
+                        <div class="flex items-center space-x-4">
+                            <button id="generate-array" class="control-btn">Generate Array</button>
+                            <button id="start-sort" class="control-btn">Start Sorting</button>
+                            <button id="pause-sort" class="control-btn" disabled>Pause</button>
+                            <button id="reset-sort" class="control-btn">Reset</button>
+                            <button id="prev-step" class="control-btn" disabled>Previous Step</button>
+                            <button id="next-step" class="control-btn" disabled>Next Step</button>
+                            <button id="custom-array-btn" class="control-btn">Custom Array</button>
+                            <button id="compare-btn" class="control-btn">Compare Algorithms</button>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <label class="text-white">Speed:</label>
+                            <input type="range" id="speed-slider" class="speed-slider" min="1" max="100" value="50">
+                            <label class="text-white">Size:</label>
+                            <input type="range" id="size-slider" class="speed-slider" min="10" max="100" value="50">
+                        </div>
+                    </div>
+                    
+                    <!-- Algorithm Comparison Mode -->
+                    <div id="comparison-container" class="hidden glass-card rounded-xl p-4 mb-6">
+                        <div class="flex justify-between mb-4">
+                            <div class="w-1/2 pr-2">
+                                <select id="algorithm1" class="bg-white/20 text-white p-2 rounded-md w-full">
+                                    <option value="bubble">Bubble Sort</option>
+                                    <option value="quick" selected>Quick Sort</option>
+                                    <option value="merge">Merge Sort</option>
+                                    <option value="heap">Heap Sort</option>
+                                </select>
+                                <div id="visualization1" class="visualization-container h-64 mt-2"></div>
+                                <div id="metrics1" class="text-white text-sm mt-2"></div>
+                            </div>
+                            <div class="w-1/2 pl-2">
+                                <select id="algorithm2" class="bg-white/20 text-white p-2 rounded-md w-full">
+                                    <option value="bubble">Bubble Sort</option>
+                                    <option value="quick">Quick Sort</option>
+                                    <option value="merge" selected>Merge Sort</option>
+                                    <option value="heap">Heap Sort</option>
+                                </select>
+                                <div id="visualization2" class="visualization-container h-64 mt-2"></div>
+                                <div id="metrics2" class="text-white text-sm mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step information -->
+                     <div class="glass-card rounded-xl p-3 mb-4">
+                         <div id="step-description" class="text-white text-center my-1 text-lg">Select an algorithm and start sorting</div>
+                         <div id="step-counter" class="text-white text-center text-sm opacity-75"></div>
+                     </div>
+                     
+                     <!-- Algorithm complexity information -->
+                      <div id="complexity-info" class="glass-card rounded-xl p-3 mb-4 max-w-lg mx-auto">
+                          <h3 class="text-xl font-bold text-white mb-2">Algorithm Complexity</h3>
+                          <div class="grid grid-cols-2 gap-2 text-white">
+                              <div class="font-semibold">Time Complexity:</div>
+                              <div id="time-complexity">O(n²) - Bubble Sort</div>
+                              <div class="font-semibold">Space Complexity:</div>
+                              <div id="space-complexity">O(1)</div>
+                              <div class="font-semibold">Best Case:</div>
+                              <div id="best-case">O(n) - When array is already sorted</div>
+                              <div class="font-semibold">Worst Case:</div>
+                              <div id="worst-case">O(n²) - When array is reverse sorted</div>
+                          </div>
+                      </div>
+                     
+                     <!-- Custom Array Input Modal -->
+                     <div id="custom-array-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50">
+                         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-lg w-full">
+                             <h3 class="text-xl font-bold mb-4 dark:text-white">Enter Custom Array</h3>
+                             <p class="mb-4 text-sm dark:text-gray-300">Enter numbers separated by commas or spaces</p>
+                             <input type="text" id="custom-array-input" class="w-full p-2 border rounded mb-4 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="e.g., 5, 3, 8, 1, 9, 6">
+                             <div class="flex justify-end gap-2">
+                                 <button id="cancel-custom-array" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded dark:text-white">Cancel</button>
+                                 <button id="submit-custom-array" class="px-4 py-2 bg-blue-500 text-white rounded">Submit</button>
+                             </div>
+                         </div>
+                     </div>
+
+                    <!-- Visualization Area -->
+                    <div class="glass-card rounded-xl p-4">
+                        <div id="sorting-visualization" class="h-96 flex items-end justify-center space-x-1"></div>
+                    </div>
+
+                    <!-- Algorithm Info -->
+                    <div id="algorithm-info" class="glass-card rounded-xl p-4 mt-4">
+                        <h3 class="text-white font-bold mb-2">Algorithm Information</h3>
+                        <div id="algorithm-details" class="text-white opacity-90">
+                            Select an algorithm to see details and complexity analysis.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Trees Section -->
+            <section id="trees-section" class="tab-content hidden">
+                <div class="glass-card rounded-2xl p-6 mb-6 fade-in">
+                    <h2 class="text-2xl font-bold text-white mb-4">Tree Traversal</h2>
+                    
+                    <!-- Tree Type Selection -->
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center active" data-tree-type="bst">
+                            <div class="text-3xl mb-2">🌲</div>
+                            <h3 class="text-white font-medium">Binary Search Tree</h3>
+                            <p class="text-white opacity-70 text-sm">Standard BST</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-tree-type="avl">
+                            <div class="text-3xl mb-2">⚖️</div>
+                            <h3 class="text-white font-medium">AVL Tree</h3>
+                            <p class="text-white opacity-70 text-sm">Self-Balancing</p>
+                        </div>
+                    </div>
+
+                    <!-- Tree Algorithm Selection -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-tree-algorithm="inorder">
+                            <div class="text-3xl mb-2">📍</div>
+                            <h3 class="text-white font-medium">In-Order</h3>
+                            <p class="text-white opacity-70 text-sm">Left → Root → Right</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-tree-algorithm="preorder">
+                            <div class="text-3xl mb-2">📌</div>
+                            <h3 class="text-white font-medium">Pre-Order</h3>
+                            <p class="text-white opacity-70 text-sm">Root → Left → Right</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-tree-algorithm="postorder">
+                            <div class="text-3xl mb-2">📎</div>
+                            <h3 class="text-white font-medium">Post-Order</h3>
+                            <p class="text-white opacity-70 text-sm">Left → Right → Root</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-tree-algorithm="levelorder">
+                            <div class="text-3xl mb-2">📊</div>
+                            <h3 class="text-white font-medium">Level-Order</h3>
+                            <p class="text-white opacity-70 text-sm">Breadth-First</p>
+                        </div>
+                    </div>
+
+                    <!-- Tree Controls -->
+                    <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
+                        <div class="flex items-center space-x-4">
+                            <button id="generate-tree" class="control-btn">Generate Tree</button>
+                            <button id="start-traversal" class="control-btn">Start Traversal</button>
+                            <button id="pause-traversal" class="control-btn" disabled>Pause</button>
+                            <button id="reset-traversal" class="control-btn">Reset</button>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <label class="text-white">Speed:</label>
+                            <input type="range" id="tree-speed-slider" class="speed-slider" min="1" max="100" value="50">
+                        </div>
+                    </div>
+
+                    <!-- Tree Status -->
+                    <div class="glass-card rounded-xl p-4 mb-6">
+                        <div id="tree-status" class="text-white opacity-90">
+                            Tree: BST | Traversal: In-Order
+                        </div>
+                    </div>
+
+                    <!-- Custom Tree Builder -->
+                    <div class="glass-card rounded-xl p-4 mb-6">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label for="tree-input" class="text-white font-medium">Your Numbers:</label>
+                            <input id="tree-input" type="text" placeholder="e.g., 8,3,10,1,6,14,4,7,13" 
+                                   class="flex-1 min-w-[240px] rounded-md px-3 py-2 outline-none bg-white/70" />
+                            <button id="build-tree" class="control-btn">Build Tree</button>
+                        </div>
+                        <p class="text-white opacity-80 mt-2 text-sm">Enter comma or space separated numbers. We will build a BST or AVL tree from them.</p>
+                    </div>
+
+                    <!-- Tree Visualization -->
+                    <div class="glass-card rounded-xl p-4">
+                        <div id="tree-visualization" class="h-96"></div>
+                    </div>
+
+                    <!-- Traversal Order -->
+                    <div class="glass-card rounded-xl p-4 mt-4">
+                        <h3 class="text-white font-bold mb-2">Traversal Order</h3>
+                        <div id="traversal-order" class="text-white opacity-90 text-lg font-mono">
+                            Start a traversal to see the order of visited nodes.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Graphs Section -->
+            <section id="graphs-section" class="tab-content hidden">
+                <div class="glass-card rounded-2xl p-6 mb-6 fade-in">
+                    <h2 class="text-2xl font-bold text-white mb-4">Graph Algorithms</h2>
+                    
+                    <!-- Graph Algorithm Selection -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-graph-algorithm="bfs">
+                            <div class="text-3xl mb-2">🌊</div>
+                            <h3 class="text-white font-medium">BFS</h3>
+                            <p class="text-white opacity-70 text-sm">Breadth-First Search</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-graph-algorithm="dfs">
+                            <div class="text-3xl mb-2">🏔️</div>
+                            <h3 class="text-white font-medium">DFS</h3>
+                            <p class="text-white opacity-70 text-sm">Depth-First Search</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-graph-algorithm="dijkstra">
+                            <div class="text-3xl mb-2">🛤️</div>
+                            <h3 class="text-white font-medium">Dijkstra</h3>
+                            <p class="text-white opacity-70 text-sm">Shortest Path</p>
+                        </div>
+                    </div>
+
+                    <!-- Graph Controls -->
+                    <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
+                        <div class="flex items-center space-x-4">
+                            <button id="generate-graph" class="control-btn">Generate Graph</button>
+                            <button id="start-graph-algorithm" class="control-btn">Start Algorithm</button>
+                            <button id="pause-graph" class="control-btn" disabled>Pause</button>
+                            <button id="reset-graph" class="control-btn">Reset</button>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <label class="text-white">Speed:</label>
+                            <input type="range" id="graph-speed-slider" class="speed-slider" min="1" max="100" value="50">
+                            <label class="text-white">Nodes:</label>
+                            <input type="range" id="graph-size-slider" class="speed-slider" min="5" max="20" value="10">
+                        </div>
+                    </div>
+
+                    <!-- Custom Graph Builder -->
+                    <div class="glass-card rounded-xl p-4 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+                            <div class="md:col-span-1 flex items-center gap-2">
+                                <label for="graph-node-input" class="text-white font-medium">Nodes:</label>
+                                <input id="graph-node-input" type="text" placeholder="count or ids e.g., 6 or 0,1,2,3,4,5"
+                                       class="flex-1 min-w-[200px] rounded-md px-3 py-2 outline-none bg-white/70" />
+                            </div>
+                            <div class="md:col-span-1 flex items-center gap-2">
+                                <label for="graph-edge-input" class="text-white font-medium">Edges:</label>
+                                <input id="graph-edge-input" type="text" placeholder="e.g., 0-1,1-2,2-3 or 0-1:5"
+                                       class="flex-1 min-w-[240px] rounded-md px-3 py-2 outline-none bg-white/70" />
+                            </div>
+                            <div class="md:col-span-1 flex items-center gap-2">
+                                <button id="build-graph" class="control-btn w-full md:w-auto">Build Graph</button>
+                            </div>
+                        </div>
+                        <p class="text-white opacity-80 mt-2 text-sm">Undirected graph. Edge format: a-b or a-b:w for weight (default 1). Nodes can be a count (e.g., 6) or explicit ids (e.g., 0,1,2,3).</p>
+                    </div>
+
+                    <!-- Graph Visualization -->
+                    <div class="glass-card rounded-xl p-4">
+                        <div id="graph-visualization" class="h-96"></div>
+                    </div>
+
+                    <!-- Algorithm Status -->
+                    <div class="glass-card rounded-xl p-4 mt-4">
+                        <h3 class="text-white font-bold mb-2">Algorithm Status</h3>
+                        <div id="graph-status" class="text-white opacity-90">
+                            Select an algorithm and click start to begin visualization.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Structures Section -->
+            <section id="data-structures-section" class="tab-content">
+                <div class="glass-card rounded-2xl p-6 mb-6 fade-in">
+                    <h2 class="text-2xl font-bold text-white mb-4">Data Structure Visualizations</h2>
+                    
+                    <!-- Data Structure Selection -->
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center active" data-ds="stack">
+                            <div class="text-3xl mb-2">📚</div>
+                            <h3 class="text-white font-medium">Stack</h3>
+                            <p class="text-white opacity-70 text-sm">LIFO Structure</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-ds="queue">
+                            <div class="text-3xl mb-2">🔄</div>
+                            <h3 class="text-white font-medium">Queue</h3>
+                            <p class="text-white opacity-70 text-sm">FIFO Structure</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-ds="circular-queue">
+                            <div class="text-3xl mb-2">⭕</div>
+                            <h3 class="text-white font-medium">Circular Queue</h3>
+                            <p class="text-white opacity-70 text-sm">Ring Buffer</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-ds="deque">
+                            <div class="text-3xl mb-2">↔️</div>
+                            <h3 class="text-white font-medium">Deque</h3>
+                            <p class="text-white opacity-70 text-sm">Double-Ended Queue</p>
+                        </div>
+                        <div class="algorithm-card glass-card rounded-xl p-4 text-center" data-ds="array">
+                            <div class="text-3xl mb-2">📋</div>
+                            <h3 class="text-white font-medium">Array</h3>
+                            <p class="text-white opacity-70 text-sm">Indexed Collection</p>
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
+                        <div class="flex flex-col w-full space-y-4">
+                            <!-- Stack Controls -->
+                            <div id="stack-controls" class="controls-container hidden">
+                                <div class="flex gap-2 mb-2">
+                                    <input type="text" id="stack-value" placeholder="Enter value" class="bg-white/20 text-white p-2 rounded-md">
+                                    <button id="push-btn" class="control-btn">Push</button>
+                                    <button id="pop-btn" class="control-btn">Pop</button>
+                                    <button id="random-stack-btn" class="control-btn">Random</button>
+                                    <button id="reset-stack" class="control-btn">Reset</button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input type="text" id="stack-search" placeholder="Search value" class="bg-white/20 text-white p-2 rounded-md">
+                                    <button id="search-stack-btn" class="control-btn">Search</button>
+                                </div>
+                            </div>
+                            <div id="array-controls" class="controls-container hidden">
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex gap-2">
+                                        <input type="text" id="array-value" placeholder="Enter value" class="bg-white/20 text-white p-2 rounded-md">
+                                        <input type="number" id="array-index" placeholder="Index" min="0" class="bg-white/20 text-white p-2 rounded-md w-20">
+                                        <button id="insert-btn" class="control-btn">Insert At Index</button>
+                                        <button id="delete-btn" class="control-btn">Delete At Index</button>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="array-search" placeholder="Search value" class="bg-white/20 text-white p-2 rounded-md">
+                                        <button id="search-array-btn" class="control-btn">Search in Array</button>
+                                        <button id="random-array-btn" class="control-btn">Generate Random Array</button>
+                                        <button id="reset-array" class="control-btn">Clear Array</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Queue Controls -->
+                            <div id="queue-controls" class="controls-container">
+                                <div class="flex gap-2 mb-2">
+                                    <input type="text" id="queue-value" placeholder="Enter value" class="bg-white/20 text-white p-2 rounded-md">
+                                    <button id="enqueue-btn" class="control-btn">Enqueue</button>
+                                    <button id="dequeue-btn" class="control-btn">Dequeue</button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button id="random-queue-btn" class="control-btn bg-gradient-to-r from-blue-500 to-purple-500">Generate Random Queue</button>
+                                    <button id="reset-queue" class="control-btn">Reset</button>
+                                </div>
+                            </div>
+                            <!-- Circular Queue Controls -->
+                            <div id="circular-queue-controls" class="controls-container">
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex gap-2">
+                                        <input type="text" id="circular-queue-value" placeholder="Enter value" class="bg-white/20 text-white p-2 rounded-md">
+                                        <button id="circular-enqueue-btn" class="control-btn">Enqueue</button>
+                                        <button id="circular-dequeue-btn" class="control-btn">Dequeue</button>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button id="random-circular-queue-btn" class="control-btn bg-gradient-to-r from-blue-500 to-purple-500">Generate Random Queue</button>
+                                        <button id="reset-circular-queue" class="control-btn">Reset Queue</button>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-white">Queue Size:</label>
+                                        <input type="number" id="circular-queue-size" value="5" min="3" max="10" class="bg-white/20 text-white p-2 rounded-md w-20">
+                                        <button id="set-circular-queue-size" class="control-btn">Set Size</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Deque Controls -->
+                            <div id="deque-controls" class="controls-container">
+                                <div class="flex gap-2 mb-2">
+                                    <input type="text" id="deque-value" placeholder="Enter value" class="bg-white/20 text-white p-2 rounded-md">
+                                    <button id="insert-front-btn" class="control-btn">Insert Front</button>
+                                    <button id="insert-rear-btn" class="control-btn">Insert Rear</button>
+                                </div>
+                                <div class="flex gap-2 mb-2">
+                                    <button id="delete-front-btn" class="control-btn">Delete Front</button>
+                                    <button id="delete-rear-btn" class="control-btn">Delete Rear</button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button id="random-deque-btn" class="control-btn bg-gradient-to-r from-blue-500 to-purple-500">Generate Random</button>
+                                    <button id="reset-deque" class="control-btn">Reset</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <label class="text-white">Animation Speed:</label>
+                            <input type="range" id="ds-speed-slider" class="speed-slider" min="1" max="100" value="50">
+                        </div>
+                    </div>
+                    
+                    <!-- Data Structure Visualization -->
+                    <div class="glass-card rounded-xl p-4">
+                        <div id="ds-visualization" class="h-96 flex items-center justify-center">
+                            <div id="stack-container" class="ds-container w-full h-full flex flex-col items-center justify-end active"></div>
+                            <div id="queue-container" class="ds-container w-full h-full flex items-center justify-center hidden">
+                                <div class="queue-wrapper">
+                                    <div class="queue-items"></div>
+                                </div>
+                            </div>
+                            <div id="array-container" class="ds-container w-full h-full flex items-center justify-center hidden"></div>
+                            <div id="circular-queue-container" class="ds-container w-full h-full flex items-center justify-center hidden">
+                                <div class="relative w-96 h-96">
+                                    <!-- Circular queue elements will be added here dynamically -->
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <div class="circular-queue-ring w-full h-full"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="deque-container" class="ds-container w-full h-full flex flex-col hidden">
+                                <div class="flex-1 flex items-center justify-center">
+                                    <div class="deque-visualization"></div>
+                                </div>
+                                <div class="mt-4 bg-gray-800/50 rounded-lg p-4 h-1/3">
+                                    <pre id="deque-code" class="text-white text-sm font-mono"></pre>
+                                </div>
+                            </div>
+                            <!-- duplicate deque-container removed -->
+                        </div>
+                    </div>
+
+                    <!-- Operation Status -->
+                    <div class="glass-card rounded-xl p-4 mt-4">
+                        <h3 class="text-white font-bold mb-2">Operation Status</h3>
+                        <div id="ds-status" class="text-white opacity-90">
+                            Select an operation to begin visualization.
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="text-center mt-12 text-white opacity-70">
+            <p>&copy; 2024 DSA Visualizer - Built for Learning & Recruitment</p>
+        </footer>
+    </div>
+
+    <script src="animations.js"></script>
+    <script src="sorting.js"></script>
+    <script src="trees.js"></script>
+    <script src="graphs.js"></script>
+    <script src="data-structures.js"></script>
+    <script src="main.js"></script>
+    <!-- Add this script -->
+    <script>
+        // Handle cover overlay and tab navigation
+        document.addEventListener('DOMContentLoaded', () => {
+            // Data Structure Selection Handler
+            const dsCards = document.querySelectorAll('[data-ds]');
+            const dataStructures = ['stack', 'queue', 'array', 'circular-queue', 'deque'];
+
+            function switchToDataStructure(selectedDs) {
+                // Update active state of cards
+                dsCards.forEach(c => c.classList.remove('active'));
+                document.querySelector(`[data-ds="${selectedDs}"]`)?.classList.add('active');
+                
+                // Hide all containers and controls using classes
+                dataStructures.forEach(ds => {
+                    const container = document.getElementById(`${ds}-container`);
+                    const controls = document.getElementById(`${ds}-controls`);
+                    if (container) {
+                        container.classList.add('hidden');
+                        container.style.display = 'none';
+                    }
+                    if (controls) controls.classList.add('hidden');
+                });
+                
+                // Show selected structure
+                const selectedContainer = document.getElementById(`${selectedDs}-container`);
+                const selectedControls = document.getElementById(`${selectedDs}-controls`);
+                
+                if (selectedContainer) {
+                    selectedContainer.classList.remove('hidden');
+                    selectedContainer.style.display = 'flex';
+                    selectedContainer.style.visibility = 'visible';
+                }
+                if (selectedControls) selectedControls.classList.remove('hidden');
+                
+                // Update visualizer if it exists
+                if (window.dataStructureVisualizer) {
+                    window.dataStructureVisualizer.currentDS = selectedDs;
+                    if (selectedDs === 'circular-queue') {
+                        window.dataStructureVisualizer.renderCircularQueue();
+                    } else if (selectedDs === 'deque') {
+                        window.dataStructureVisualizer.renderDeque();
+                    }
+                }
+            }
+
+            // Add click handlers to data structure cards
+            dsCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const selectedDs = card.getAttribute('data-ds');
+                    switchToDataStructure(selectedDs);
+                });
+            });
+
+            // Initialize with stack selected
+            switchToDataStructure('stack');
+            
+            // Set initial active data structure and ensure visibility
+            const initialDs = 'stack';
+            const initialDsCard = document.querySelector(`[data-ds="${initialDs}"]`);
+            if (initialDsCard) {
+                initialDsCard.classList.add('active');
+                const container = document.getElementById(`${initialDs}-container`);
+                const controls = document.getElementById(`${initialDs}-controls`);
+                if (container) {
+                    container.classList.remove('hidden');
+                    container.classList.add('active');
+                    container.style.display = 'flex';
+                }
+                if (controls) {
+                    controls.classList.remove('hidden');
+                    controls.style.display = 'block';
+                }
+            }
+            // Handle cover overlay animation
+            setTimeout(() => {
+                const coverOverlay = document.getElementById('cover-overlay');
+                if (coverOverlay) {
+                    coverOverlay.classList.add('hide');
+                    setTimeout(() => {
+                        coverOverlay.style.display = 'none';
+                    }, 600);
+                }
+            }, 2000);
+            
+            // Show Data Structures tab by default
+            document.getElementById('data-structures-section').classList.remove('hidden');
+            document.querySelector('[data-tab="data-structures"]').classList.add('active');
+
+            // Tab navigation functionality
+            const tabs = document.querySelectorAll('[data-tab]');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.dataset.tab;
+                    
+                    // Update active tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Show/hide content
+                    tabContents.forEach(content => {
+                        if (content.id === `${target}-section`) {
+                            content.classList.remove('hidden');
+                            
+                            // Initialize visualizer if needed
+                            if (target === 'trees' && window.treeVisualizer) {
+                                window.treeVisualizer.initializeSVG();
+                                window.treeVisualizer.generateTree();
+                            } else if (target === 'graphs' && window.graphVisualizer) {
+                                window.graphVisualizer.initializeSVG();
+                                window.graphVisualizer.generateGraph();
+                            } else if (target === 'data-structures' && window.dataStructureVisualizer) {
+                                window.dataStructureVisualizer.initialize();
+                            }
+                        } else {
+                            content.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+            
+            // Set initial active algorithm cards
+            document.querySelector('[data-algorithm="bubble"]')?.classList.add('active');
+            document.querySelector('[data-tree-algorithm="inorder"]')?.classList.add('active');
+            document.querySelector('[data-graph-algorithm="bfs"]')?.classList.add('active');
+            // Ensure Data Structures tab is shown by default
+            const dsTab = document.querySelector('[data-tab="data-structures"]');
+            if (dsTab) dsTab.click();
+        });
+    </script>
+</body>
+</html>
